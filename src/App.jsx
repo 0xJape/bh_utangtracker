@@ -257,6 +257,22 @@ function App() {
     return balance
   }
 
+  // Calculate debt between current user and another user
+  function calculateDebtBetweenUsers(otherUserId) {
+    let balance = 0
+    transactions.forEach(t => {
+      // Current user lent money to the other user
+      if (t.from_user === currentUser.id && t.to_user === otherUserId) {
+        balance += t.amount // Other user owes current user
+      }
+      // Other user lent money to current user
+      if (t.from_user === otherUserId && t.to_user === currentUser.id) {
+        balance -= t.amount // Current user owes other user
+      }
+    })
+    return balance
+  }
+
   function getUserName(userId) {
     const user = users.find(u => u.id === userId)
     return user ? user.name : 'Unknown'
@@ -648,12 +664,13 @@ function App() {
           <div className="balance-grid">
             {users
               .filter(user => {
-                const balance = calculateBalance(user.id)
-                // If their balance is negative, they owe money (meaning they owe me)
-                return balance < 0 && user.id !== currentUser.id
+                if (user.id === currentUser.id) return false
+                const debt = calculateDebtBetweenUsers(user.id)
+                // Positive debt means they owe me
+                return debt > 0
               })
               .map(user => {
-                const balance = calculateBalance(user.id)
+                const debt = calculateDebtBetweenUsers(user.id)
                 return (
                   <div key={user.id} className="balance-item balance-item-owed">
                     <div className="balance-item-user">
@@ -667,12 +684,12 @@ function App() {
                       <span className="balance-item-name">{user.name}</span>
                     </div>
                     <div className="balance-item-amount positive">
-                      ₱{Math.abs(balance).toFixed(2)}
+                      ₱{debt.toFixed(2)}
                     </div>
                   </div>
                 )
               })}
-            {users.filter(user => calculateBalance(user.id) < 0 && user.id !== currentUser.id).length === 0 && (
+            {users.filter(user => user.id !== currentUser.id && calculateDebtBetweenUsers(user.id) > 0).length === 0 && (
               <div className="empty-state-small">No one owes you money 🎉</div>
             )}
           </div>
@@ -683,12 +700,13 @@ function App() {
           <div className="balance-grid">
             {users
               .filter(user => {
-                const balance = calculateBalance(user.id)
-                // If their balance is positive, they are owed money (meaning I owe them)
-                return balance > 0 && user.id !== currentUser.id
+                if (user.id === currentUser.id) return false
+                const debt = calculateDebtBetweenUsers(user.id)
+                // Negative debt means I owe them
+                return debt < 0
               })
               .map(user => {
-                const balance = calculateBalance(user.id)
+                const debt = calculateDebtBetweenUsers(user.id)
                 return (
                   <div key={user.id} className="balance-item balance-item-owing">
                     <div className="balance-item-user">
@@ -702,12 +720,12 @@ function App() {
                       <span className="balance-item-name">{user.name}</span>
                     </div>
                     <div className="balance-item-amount negative">
-                      ₱{balance.toFixed(2)}
+                      ₱{Math.abs(debt).toFixed(2)}
                     </div>
                   </div>
                 )
               })}
-            {users.filter(user => calculateBalance(user.id) > 0 && user.id !== currentUser.id).length === 0 && (
+            {users.filter(user => user.id !== currentUser.id && calculateDebtBetweenUsers(user.id) < 0).length === 0 && (
               <div className="empty-state-small">You don't owe anyone 🎉</div>
             )}
           </div>
