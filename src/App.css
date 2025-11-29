@@ -721,6 +721,24 @@
   color: #64748b;
 }
 
+.balance-item-owed {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
+  border-left: 3px solid #22c55e;
+}
+
+.balance-item-owing {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+  border-left: 3px solid #ef4444;
+}
+
+.empty-state-small {
+  padding: 2rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
 .transaction-form {
   display: flex;
   flex-direction: column;

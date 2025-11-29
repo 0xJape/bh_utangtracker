@@ -597,6 +597,77 @@ function App() {
           </div>
         </div>
 
+        {/* Who Owes Me / Who I Owe */}
+        <div className="card">
+          <h2 className="card-title">💰 People Who Owe Me</h2>
+          <div className="balance-grid">
+            {users
+              .filter(user => {
+                const balance = calculateBalance(user.id)
+                // If their balance is negative, they owe money (meaning they owe me)
+                return balance < 0 && user.id !== currentUser.id
+              })
+              .map(user => {
+                const balance = calculateBalance(user.id)
+                return (
+                  <div key={user.id} className="balance-item balance-item-owed">
+                    <div className="balance-item-user">
+                      {user.profile_pic ? (
+                        <img src={user.profile_pic} alt={user.name} className="mini-avatar mini-avatar-img" />
+                      ) : (
+                        <div className="mini-avatar">
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="balance-item-name">{user.name}</span>
+                    </div>
+                    <div className="balance-item-amount positive">
+                      ₱{Math.abs(balance).toFixed(2)}
+                    </div>
+                  </div>
+                )
+              })}
+            {users.filter(user => calculateBalance(user.id) < 0 && user.id !== currentUser.id).length === 0 && (
+              <div className="empty-state-small">No one owes you money 🎉</div>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <h2 className="card-title">💸 People I Owe</h2>
+          <div className="balance-grid">
+            {users
+              .filter(user => {
+                const balance = calculateBalance(user.id)
+                // If their balance is positive, they are owed money (meaning I owe them)
+                return balance > 0 && user.id !== currentUser.id
+              })
+              .map(user => {
+                const balance = calculateBalance(user.id)
+                return (
+                  <div key={user.id} className="balance-item balance-item-owing">
+                    <div className="balance-item-user">
+                      {user.profile_pic ? (
+                        <img src={user.profile_pic} alt={user.name} className="mini-avatar mini-avatar-img" />
+                      ) : (
+                        <div className="mini-avatar">
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="balance-item-name">{user.name}</span>
+                    </div>
+                    <div className="balance-item-amount negative">
+                      ₱{balance.toFixed(2)}
+                    </div>
+                  </div>
+                )
+              })}
+            {users.filter(user => calculateBalance(user.id) > 0 && user.id !== currentUser.id).length === 0 && (
+              <div className="empty-state-small">You don't owe anyone 🎉</div>
+            )}
+          </div>
+        </div>
+
         {/* All Balances */}
         <div className="card">
           <h2 className="card-title">Everyone's Balance</h2>
