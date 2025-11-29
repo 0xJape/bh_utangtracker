@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
+import Landing from './Landing'
 import './App.css'
 
 function App() {
+  const [showLanding, setShowLanding] = useState(true)
   const [users, setUsers] = useState([])
   const [transactions, setTransactions] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
@@ -28,15 +30,17 @@ function App() {
   const [batchMode, setBatchMode] = useState('paying') // 'paying' or 'lending'
 
   useEffect(() => {
-    fetchUsers()
-    fetchTransactions()
-    
-    // Check if user is already logged in
-    const savedUser = localStorage.getItem('currentUser')
-    if (savedUser) {
-      setCurrentUser(JSON.parse(savedUser))
+    if (!showLanding) {
+      fetchUsers()
+      fetchTransactions()
+      
+      // Check if user is already logged in
+      const savedUser = localStorage.getItem('currentUser')
+      if (savedUser) {
+        setCurrentUser(JSON.parse(savedUser))
+      }
     }
-  }, [])
+  }, [showLanding])
 
   // Sync currentUser with updated users data
   useEffect(() => {
@@ -471,6 +475,10 @@ function App() {
   const myTransactions = transactions.filter(t => 
     t.from_user === currentUser.id || t.to_user === currentUser.id
   )
+
+  if (showLanding) {
+    return <Landing onEnter={() => setShowLanding(false)} />
+  }
 
   return (
     <div className="app dashboard">
