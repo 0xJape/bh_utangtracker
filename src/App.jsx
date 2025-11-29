@@ -33,14 +33,22 @@ function App() {
     if (!showLanding) {
       fetchUsers()
       fetchTransactions()
-      
-      // Check if user is already logged in
-      const savedUser = localStorage.getItem('currentUser')
-      if (savedUser) {
-        setCurrentUser(JSON.parse(savedUser))
-      }
     }
   }, [showLanding])
+
+  // Check for saved login after landing
+  useEffect(() => {
+    if (!showLanding && users.length > 0 && !currentUser) {
+      const savedUser = localStorage.getItem('currentUser')
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser)
+        const user = users.find(u => u.id === parsed.id)
+        if (user) {
+          setCurrentUser(user)
+        }
+      }
+    }
+  }, [showLanding, users, currentUser])
 
   // Sync currentUser with updated users data
   useEffect(() => {
@@ -340,6 +348,10 @@ function App() {
     }
   }
 
+  if (showLanding) {
+    return <Landing onEnter={() => setShowLanding(false)} />
+  }
+
   if (loading) {
     return <div className="loading">Loading...</div>
   }
@@ -350,28 +362,35 @@ function App() {
     if (selectedUser) {
       return (
         <div className="app">
-          <div className="modal-overlay">
-            <div className="modal">
-              <div className="modal-header">
-                <h2>Welcome, {selectedUser.name}</h2>
-                <button onClick={cancelLogin} className="close-btn">×</button>
+          <div className="modal-overlay-minimal">
+            <div className="modal-minimal">
+              <div className="modal-user-header">
+                {selectedUser.profile_pic ? (
+                  <img src={selectedUser.profile_pic} alt={selectedUser.name} className="modal-user-avatar" />
+                ) : (
+                  <div className="modal-user-avatar">
+                    {selectedUser.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <h2>Welcome back, {selectedUser.name}</h2>
+                <p>Enter your password to continue</p>
               </div>
-              <form onSubmit={handleLogin} className="modal-form">
+              <form onSubmit={handleLogin} className="modal-form-minimal">
                 <input
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input"
+                  className="input-minimal"
                   autoFocus
                   required
                 />
-                <div className="modal-actions">
-                  <button type="button" onClick={cancelLogin} className="btn btn-secondary">
-                    Cancel
+                <div className="modal-actions-minimal">
+                  <button type="button" onClick={cancelLogin} className="btn-minimal-secondary">
+                    Back
                   </button>
-                  <button type="submit" className="btn btn-primary">
-                    Login
+                  <button type="submit" className="btn-minimal-primary">
+                    Continue
                   </button>
                 </div>
               </form>
@@ -385,19 +404,26 @@ function App() {
     if (showAddUser) {
       return (
         <div className="app">
-          <div className="modal-overlay">
-            <div className="modal">
-              <div className="modal-header">
+          <div className="modal-overlay-minimal">
+            <div className="modal-minimal">
+              <div className="modal-user-header">
+                <div className="modal-user-avatar add-user-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                    <path d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <circle cx="8.5" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M20 8V14M23 11H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </div>
                 <h2>Add New User</h2>
-                <button onClick={() => setShowAddUser(false)} className="close-btn">×</button>
+                <p>Create a new account for a boarder</p>
               </div>
-              <form onSubmit={addUser} className="modal-form">
+              <form onSubmit={addUser} className="modal-form-minimal">
                 <input
                   type="text"
                   placeholder="Full Name"
                   value={newUser}
                   onChange={(e) => setNewUser(e.target.value)}
-                  className="input"
+                  className="input-minimal"
                   autoFocus
                   required
                 />
@@ -406,14 +432,14 @@ function App() {
                   placeholder="Create Password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="input"
+                  className="input-minimal"
                   required
                 />
-                <div className="modal-actions">
-                  <button type="button" onClick={() => setShowAddUser(false)} className="btn btn-secondary">
+                <div className="modal-actions-minimal">
+                  <button type="button" onClick={() => setShowAddUser(false)} className="btn-minimal-secondary">
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn-primary">
+                  <button type="submit" className="btn-minimal-primary">
                     Add User
                   </button>
                 </div>
@@ -425,43 +451,58 @@ function App() {
     }
 
     return (
-      <div className="app login-screen">
-        <div className="login-container">
-          <div className="login-header">
-            <h1>Debt Tracking System</h1>
-            <p className="subtitle">Select your profile to continue</p>
+      <div className="app login-screen-minimal">
+        <div className="login-minimal-container">
+          <button className="back-to-landing" onClick={() => setShowLanding(true)}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Back
+          </button>
+          <div className="login-minimal-header">
+            <div className="brand-mark-small">
+              <span>BH</span>
+            </div>
+            <h1>Select Your Profile</h1>
+            <p>Choose your account to continue</p>
           </div>
           
           {users.length === 0 ? (
-            <div className="empty-state">
+            <div className="empty-state-minimal">
               <p>No users yet. Add your apartment-mates to get started!</p>
-              <button onClick={() => setShowAddUser(true)} className="btn btn-primary">
+              <button onClick={() => setShowAddUser(true)} className="btn-minimal-primary">
                 Add First User
               </button>
             </div>
           ) : (
             <>
-              <div className="user-grid">
+              <div className="user-grid-minimal">
                 {users.map(user => (
                   <button
                     key={user.id}
                     onClick={() => selectUser(user)}
-                    className="user-card-modern"
+                    className="user-card-minimal"
                   >
                     {user.profile_pic ? (
-                      <img src={user.profile_pic} alt={user.name} className="user-avatar-modern user-avatar-img" />
+                      <img src={user.profile_pic} alt={user.name} className="user-avatar-minimal user-avatar-img-minimal" />
                     ) : (
-                      <div className="user-avatar-modern">
+                      <div className="user-avatar-minimal">
                         {user.name.charAt(0).toUpperCase()}
                       </div>
                     )}
-                    <div className="user-name-modern">{user.name}</div>
+                    <div className="user-name-minimal">{user.name}</div>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="arrow-icon">
+                      <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
                   </button>
                 ))}
               </div>
               
-              <button onClick={() => setShowAddUser(true)} className="btn-add-user">
-                + Add User
+              <button onClick={() => setShowAddUser(true)} className="btn-add-user-minimal">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M10 4V16M4 10H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                Add New User
               </button>
             </>
           )}
@@ -475,10 +516,6 @@ function App() {
   const myTransactions = transactions.filter(t => 
     t.from_user === currentUser.id || t.to_user === currentUser.id
   )
-
-  if (showLanding) {
-    return <Landing onEnter={() => setShowLanding(false)} />
-  }
 
   return (
     <div className="app dashboard">
