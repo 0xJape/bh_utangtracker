@@ -5,6 +5,13 @@ import './App.css'
 
 function App() {
   const [showLanding, setShowLanding] = useState(true)
+  const [currentGroup, setCurrentGroup] = useState(null)
+  const [groups, setGroups] = useState([])
+  const [groupCode, setGroupCode] = useState('')
+  const [newGroupName, setNewGroupName] = useState('')
+  const [showGroupSelection, setShowGroupSelection] = useState(false)
+  const [showGroupDropdown, setShowGroupDropdown] = useState(false)
+  const [selectedGroupToJoin, setSelectedGroupToJoin] = useState(null)
   const [users, setUsers] = useState([])
   const [transactions, setTransactions] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
@@ -29,12 +36,41 @@ function App() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [batchMode, setBatchMode] = useState('paying') // 'paying' or 'lending'
 
+  // Check on initial mount if we should skip landing
+  useEffect(() => {
+    const savedGroup = localStorage.getItem('currentGroup')
+    if (savedGroup) {
+      setShowLanding(false)
+    }
+  }, [])
+
+  // Add keyboard shortcut to reset app (Ctrl+Shift+R)
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        e.preventDefault()
+        if (window.confirm('Reset app and clear all data? You will return to the landing page.')) {
+          localStorage.clear()
+          window.location.reload()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [])
+
   useEffect(() => {
     if (!showLanding) {
+      checkSavedGroup()
+    }
+  }, [showLanding])
+
+  useEffect(() => {
+    if (currentGroup) {
       fetchUsers()
       fetchTransactions()
     }
-  }, [showLanding])
+  }, [currentGroup])
 
   // Check for saved login after landing
   useEffect(() => {
@@ -50,6 +86,17 @@ function App() {
     }
   }, [showLanding, users, currentUser])
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showGroupDropdown && !e.target.closest('.group-selector')) {
+        setShowGroupDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showGroupDropdown])
+
   // Sync currentUser with updated users data
   useEffect(() => {
     if (currentUser && users.length > 0) {
@@ -62,28 +109,212 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users])
 
+  // Group Management Functions
+  async function checkSavedGroup() {
+    const savedGroup = localStorage.getItem('currentGroup')
+    if (savedGroup) {
+      try {
+        const group = JSON.parse(savedGroup)
+        // Verify the group still exists in the database
+        const { data, error } = await supabase
+          .from('groups')
+          .select('*')
+          .eq('id', group.id)
+          .single()
+        
+        if (error || !data) {
+          // Group doesn't exist anymore, clear it
+          localStorage.removeItem('currentGroup')
+          setShowGroupSelection(true)
+        } else {
+          setCurrentGroup(data)
+        }
+      } catch (err) {
+        console.error('Error checking saved group:', err)
+        localStorage.removeItem('currentGroup')
+        setShowGroupSelection(true)
+      }
+    } else {
+      setShowGroupSelection(true)
+    }
+    // Fetch all groups the user has access to
+    await fetchUserGroups()
+  }
+
+  async function fetchUserGroups() {
+    try {
+      // Fetch ALL groups from the database to show on selection page
+      const { data, error } = await supabase
+        .from('groups')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      setGroups(data || [])
+      
+      // Update localStorage with all group IDs
+      if (data && data.length > 0) {
+        const groupIds = data.map(g => g.id)
+        localStorage.setItem('userGroups', JSON.stringify(groupIds))
+      }
+    } catch (error) {
+      console.error('Error fetching user groups:', error)
+    }
+  }
+
+  async function createGroup(e) {
+    e.preventDefault()
+    try {
+      // Generate unique group code
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase()
+      
+      const { data, error } = await supabase
+        .from('groups')
+        .insert([{ name: newGroupName, code }])
+        .select()
+        .single()
+      
+      if (error) throw error
+      
+      // Add to user's groups list
+      const savedGroupsStr = localStorage.getItem('userGroups')
+      const savedGroups = savedGroupsStr ? JSON.parse(savedGroupsStr) : []
+      if (!savedGroups.includes(data.id)) {
+        savedGroups.push(data.id)
+        localStorage.setItem('userGroups', JSON.stringify(savedGroups))
+      }
+      
+      setCurrentGroup(data)
+      localStorage.setItem('currentGroup', JSON.stringify(data))
+      setShowGroupSelection(false)
+      setNewGroupName('')
+      await fetchUserGroups()
+      alert(`Group created! Share this code with your group: ${data.code}`)
+    } catch (error) {
+      console.error('Error creating group:', error)
+      alert('Error creating group: ' + error.message)
+    }
+  }
+
+  async function joinGroup(e) {
+    e.preventDefault()
+    try {
+      const { data, error } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('code', groupCode.toUpperCase())
+        .single()
+      
+      if (error) throw error
+      
+      if (!data) {
+        alert('Invalid group code!')
+        return
+      }
+      
+      // Add to user's groups list
+      const savedGroupsStr = localStorage.getItem('userGroups')
+      const savedGroups = savedGroupsStr ? JSON.parse(savedGroupsStr) : []
+      if (!savedGroups.includes(data.id)) {
+        savedGroups.push(data.id)
+        localStorage.setItem('userGroups', JSON.stringify(savedGroups))
+      }
+      
+      setCurrentGroup(data)
+      localStorage.setItem('currentGroup', JSON.stringify(data))
+      setShowGroupSelection(false)
+      setGroupCode('')
+      await fetchUserGroups()
+    } catch (error) {
+      console.error('Error joining group:', error)
+      alert('Invalid group code!')
+    }
+  }
+
+  function switchGroup() {
+    setCurrentGroup(null)
+    setCurrentUser(null)
+    localStorage.removeItem('currentGroup')
+    localStorage.removeItem('currentUser')
+    setShowGroupSelection(true)
+  }
+
+  function selectGroup(group) {
+    setCurrentGroup(group)
+    setCurrentUser(null)
+    localStorage.setItem('currentGroup', JSON.stringify(group))
+    localStorage.removeItem('currentUser')
+    setShowGroupDropdown(false)
+  }
+
+  function selectGroupFromList(group) {
+    setSelectedGroupToJoin(group)
+    setGroupCode('')
+  }
+
+  function cancelGroupSelection() {
+    setSelectedGroupToJoin(null)
+    setGroupCode('')
+  }
+
+  async function verifyAndJoinGroup(e) {
+    e.preventDefault()
+    if (!selectedGroupToJoin) return
+    
+    if (groupCode.toUpperCase() === selectedGroupToJoin.code) {
+      selectGroup(selectedGroupToJoin)
+      setSelectedGroupToJoin(null)
+      setGroupCode('')
+    } else {
+      alert('Incorrect group code! Please try again.')
+      setGroupCode('')
+    }
+  }
+
   async function fetchUsers() {
+    if (!currentGroup) return
     try {
       const { data, error } = await supabase
         .from('users')
         .select('*')
+        .eq('group_id', currentGroup.id)
         .order('name')
       
-      if (error) throw error
+      if (error) {
+        // Check if error is due to missing group_id column (migration not run yet)
+        if (error.message && error.message.includes('group_id')) {
+          console.error('Database migration needed! Run database-schema-groups.sql and migrate-existing-data.sql')
+          alert('Database migration required! Please run the migration scripts first.\n\nSee MIGRATION_GUIDE.md for instructions.')
+          setShowGroupSelection(false)
+          setShowLanding(true)
+          setLoading(false)
+          return
+        }
+        throw error
+      }
+      
       console.log('Fetched users:', data)
       setUsers(data || [])
+      
+      // If no users found in this group, inform the user
+      if (!data || data.length === 0) {
+        console.warn('No users found for this group. You may need to add users or run the migration.')
+      }
     } catch (error) {
       console.error('Error fetching users:', error)
+      alert('Error loading users: ' + error.message)
     } finally {
       setLoading(false)
     }
   }
 
   async function fetchTransactions() {
+    if (!currentGroup) return
     try {
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
+        .eq('group_id', currentGroup.id)
         .order('created_at', { ascending: false })
       
       if (error) throw error
@@ -103,7 +334,11 @@ function App() {
     try {
       const { error } = await supabase
         .from('users')
-        .insert([{ name: newUser.trim(), password: newPassword.trim() }])
+        .insert([{ 
+          name: newUser.trim(), 
+          password: newPassword.trim(),
+          group_id: currentGroup.id
+        }])
       
       if (error) throw error
       setNewUser('')
@@ -159,7 +394,8 @@ function App() {
           from_user: fromUser,
           to_user: toUser,
           amount: parseFloat(amount),
-          description: description.trim() || null
+          description: description.trim() || null,
+          group_id: currentGroup.id
         }])
       
       if (error) throw error
@@ -195,7 +431,8 @@ function App() {
           from_user: currentUser.id,
           to_user: t.toUser,
           amount: parseFloat(t.amount),
-          description: t.description.trim() || null
+          description: t.description.trim() || null,
+          group_id: currentGroup.id
         }))
       } else {
         // Current user is paying back multiple people (current user owes them)
@@ -203,11 +440,12 @@ function App() {
           from_user: t.toUser,
           to_user: currentUser.id,
           amount: parseFloat(t.amount),
-          description: t.description.trim() || null
+          description: t.description.trim() || null,
+          group_id: currentGroup.id
         }))
       }
 
-      const { error } = await supabase
+      const { error} = await supabase
         .from('transactions')
         .insert(transactionsToInsert)
       
@@ -280,7 +518,9 @@ function App() {
 
   function handleLogout() {
     setCurrentUser(null)
+    setCurrentGroup(null)
     localStorage.removeItem('currentUser')
+    localStorage.removeItem('currentGroup')
     setPassword('')
   }
 
@@ -366,6 +606,115 @@ function App() {
 
   if (showLanding) {
     return <Landing onEnter={() => setShowLanding(false)} />
+  }
+
+  // Group Selection Screen
+  if (showGroupSelection) {
+    return (
+      <div className="app login-screen-minimal">
+        <div className="login-minimal-container">
+          <div className="login-minimal-header">
+            <div className="brand-mark-small">
+              <span>BH</span>
+            </div>
+            <h1>Select Your Group</h1>
+            <p>Create a new group or join an existing one</p>
+          </div>
+
+          {selectedGroupToJoin ? (
+            <div className="group-verification-section">
+              <button onClick={cancelGroupSelection} className="back-button-minimal">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M12 4L6 10L12 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Back
+              </button>
+              <div className="group-card verification-card">
+                <div className="group-card-header">
+                  <div className="existing-group-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88M13 7C13 9.20914 11.2091 11 9 11C6.79086 11 5 9.20914 5 7C5 4.79086 6.79086 3 9 3C11.2091 3 13 4.79086 13 7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <h3>{selectedGroupToJoin.name}</h3>
+                </div>
+                <p>Enter the group code to join</p>
+                <form onSubmit={verifyAndJoinGroup} className="group-form">
+                  <input
+                    type="text"
+                    placeholder="6-character group code"
+                    value={groupCode}
+                    onChange={(e) => setGroupCode(e.target.value.toUpperCase())}
+                    className="input-minimal"
+                    maxLength={6}
+                    required
+                    autoFocus
+                  />
+                  <button type="submit" className="btn-minimal-primary">
+                    Verify & Join
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : (
+            <>
+              {groups.length > 0 && (
+                <div className="existing-groups-section">
+                  <h3>Available Groups</h3>
+                  <div className="existing-groups-list">
+                    {groups.map(group => (
+                      <button
+                        key={group.id}
+                        onClick={() => selectGroupFromList(group)}
+                        className="existing-group-item"
+                      >
+                        <div className="existing-group-icon">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88M13 7C13 9.20914 11.2091 11 9 11C6.79086 11 5 9.20914 5 7C5 4.79086 6.79086 3 9 3C11.2091 3 13 4.79086 13 7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                        <div className="existing-group-info">
+                          <span className="existing-group-name">{group.name}</span>
+                          <span className="existing-group-code">Requires code to join</span>
+                        </div>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="arrow-icon">
+                          <path d="M7 4L13 10L7 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="section-divider">
+                    <span>Or</span>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {!selectedGroupToJoin && (
+            <div className="group-selection-cards single-card">
+              <div className="group-card">
+                <h3>Create New Group</h3>
+                <p>Start a new group for your community</p>
+                <form onSubmit={createGroup} className="group-form">
+                  <input
+                    type="text"
+                    placeholder="Group Name (e.g., Capareda Boarding House)"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    className="input-minimal"
+                    required
+                  />
+                  <button type="submit" className="btn-minimal-primary">
+                    Create Group
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -469,7 +818,7 @@ function App() {
     return (
       <div className="app login-screen-minimal">
         <div className="login-minimal-container">
-          <button className="back-to-landing" onClick={() => setShowLanding(true)}>
+          <button className="back-to-landing" onClick={switchGroup}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -538,7 +887,65 @@ function App() {
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-left">
-          <h1>Utang Tracker</h1>
+          <div className="header-title-group">
+            <h1>Utang Tracker</h1>
+            <div className="group-selector">
+              <button 
+                onClick={() => setShowGroupDropdown(!showGroupDropdown)} 
+                className="group-badge-button"
+              >
+                <span className="group-info">
+                  <span className="group-name">{currentGroup.name}</span>
+                  <span className="group-code">Code: {currentGroup.code}</span>
+                </span>
+                <svg 
+                  width="16" 
+                  height="16" 
+                  viewBox="0 0 16 16" 
+                  fill="none"
+                  style={{ transform: showGroupDropdown ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                >
+                  <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              
+              {showGroupDropdown && (
+                <div className="group-dropdown">
+                  <div className="group-dropdown-header">
+                    <span>Your Groups</span>
+                  </div>
+                  {groups.length > 0 ? (
+                    groups.map(group => (
+                      <button
+                        key={group.id}
+                        onClick={() => selectGroup(group)}
+                        className={`group-dropdown-item ${currentGroup.id === group.id ? 'active' : ''}`}
+                      >
+                        <div className="group-dropdown-info">
+                          <span className="group-dropdown-name">{group.name}</span>
+                          <span className="group-dropdown-code">{group.code}</span>
+                        </div>
+                        {currentGroup.id === group.id && (
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M3 8L6 11L13 4" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="group-dropdown-empty">No groups yet</div>
+                  )}
+                  <div className="group-dropdown-divider"></div>
+                  <button onClick={switchGroup} className="group-dropdown-item create-new">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    <span>Create or Join Group</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
           <div className="user-info-header">
             {currentUser.profile_pic ? (
               <img src={currentUser.profile_pic} alt={currentUser.name} className="user-avatar-header" />

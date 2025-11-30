@@ -10,8 +10,8 @@ function Landing({ onEnter }) {
               <span>BH</span>
             </div>
             <div className="brand-text">
-              <h1>Capareda<br />Boarding House</h1>
-              <p>Financial Management System</p>
+              <h1>HuieBayad</h1>
+              <p>Utang Management System</p>
             </div>
           </div>
 
