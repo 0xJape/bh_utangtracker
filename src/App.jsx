@@ -262,7 +262,9 @@ function App() {
     if (!selectedGroupToJoin) return
     
     if (groupCode.toUpperCase() === selectedGroupToJoin.code) {
-      selectGroup(selectedGroupToJoin)
+      setCurrentGroup(selectedGroupToJoin)
+      localStorage.setItem('currentGroup', JSON.stringify(selectedGroupToJoin))
+      setShowGroupSelection(false)
       setSelectedGroupToJoin(null)
       setGroupCode('')
     } else {
