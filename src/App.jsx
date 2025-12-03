@@ -1462,8 +1462,8 @@ function App() {
                     </select>
                   </div>
                 </div>
-                </div>
               </div>
+
               <div className="form-row">
                 <input
                   type="number"
