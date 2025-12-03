@@ -38,6 +38,9 @@ function App() {
   const [paymentUserId, setPaymentUserId] = useState(null) // User ID for whom payment is being made
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentDescription, setPaymentDescription] = useState('')
+  const [paymentOwingUserId, setPaymentOwingUserId] = useState(null) // User ID for whom you're making a payment (you owe them)
+  const [paymentOwingAmount, setPaymentOwingAmount] = useState('')
+  const [paymentOwingDescription, setPaymentOwingDescription] = useState('')
 
   // Check on initial mount if we should skip landing
   useEffect(() => {
@@ -531,6 +534,58 @@ function App() {
       setPaymentUserId(null)
       setPaymentAmount('')
       setPaymentDescription('')
+      fetchTransactions()
+      alert(`Payment of ₱${payAmount.toFixed(2)} recorded successfully!`)
+    } catch (error) {
+      alert('Error recording payment: ' + error.message)
+    }
+  }
+
+  function togglePaymentOwing(userId) {
+    if (paymentOwingUserId === userId) {
+      setPaymentOwingUserId(null)
+      setPaymentOwingAmount('')
+      setPaymentOwingDescription('')
+    } else {
+      setPaymentOwingUserId(userId)
+      setPaymentOwingAmount('')
+      setPaymentOwingDescription('')
+    }
+  }
+
+  async function handlePaymentOwing(userId) {
+    if (!paymentOwingAmount || parseFloat(paymentOwingAmount) <= 0) {
+      alert('Please enter a valid payment amount')
+      return
+    }
+
+    const debt = calculateDebtBetweenUsers(userId)
+    const payAmount = parseFloat(paymentOwingAmount)
+
+    // For people you owe, debt is negative, so we check absolute value
+    if (payAmount > Math.abs(debt)) {
+      alert(`Payment amount cannot exceed the debt of ₱${Math.abs(debt).toFixed(2)}`)
+      return
+    }
+
+    try {
+      // Create a transaction where current user pays back the person they owe
+      // This reduces what current user owes by the payment amount
+      const { error } = await supabase
+        .from('transactions')
+        .insert([{
+          from_user: currentUser.id, // Current user is paying
+          to_user: userId, // Person being paid
+          amount: payAmount,
+          description: paymentOwingDescription.trim() || 'Payment',
+          group_id: currentGroup.id
+        }])
+      
+      if (error) throw error
+      
+      setPaymentOwingUserId(null)
+      setPaymentOwingAmount('')
+      setPaymentOwingDescription('')
       fetchTransactions()
       alert(`Payment of ₱${payAmount.toFixed(2)} recorded successfully!`)
     } catch (error) {
@@ -1218,21 +1273,63 @@ function App() {
               })
               .map(user => {
                 const debt = calculateDebtBetweenUsers(user.id)
+                const isPaymentOpen = paymentOwingUserId === user.id
                 return (
-                  <div key={user.id} className="balance-item balance-item-owing">
-                    <div className="balance-item-user">
-                      {user.profile_pic ? (
-                        <img src={user.profile_pic} alt={user.name} className="mini-avatar mini-avatar-img" />
-                      ) : (
-                        <div className="mini-avatar">
-                          {user.name.charAt(0).toUpperCase()}
+                  <div key={user.id} className="balance-item balance-item-owing balance-item-with-payment">
+                    <div className="balance-item-header">
+                      <div className="balance-item-user">
+                        {user.profile_pic ? (
+                          <img src={user.profile_pic} alt={user.name} className="mini-avatar mini-avatar-img" />
+                        ) : (
+                          <div className="mini-avatar">
+                            {user.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="balance-item-name">{user.name}</span>
+                      </div>
+                      <div className="balance-item-right">
+                        <div className="balance-item-amount negative">
+                          ₱{Math.abs(debt).toFixed(2)}
                         </div>
-                      )}
-                      <span className="balance-item-name">{user.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => togglePaymentOwing(user.id)}
+                          className={`btn-payment-toggle ${isPaymentOpen ? 'active' : ''}`}
+                          title="Make payment"
+                        >
+                          {isPaymentOpen ? '✕' : '💵'}
+                        </button>
+                      </div>
                     </div>
-                    <div className="balance-item-amount negative">
-                      ₱{Math.abs(debt).toFixed(2)}
-                    </div>
+                    {isPaymentOpen && (
+                      <div className="payment-form">
+                        <input
+                          type="number"
+                          placeholder="Payment amount"
+                          value={paymentOwingAmount}
+                          onChange={(e) => setPaymentOwingAmount(e.target.value)}
+                          className="input-modern input-payment"
+                          step="0.01"
+                          min="0.01"
+                          max={Math.abs(debt)}
+                          autoFocus
+                        />
+                        <input
+                          type="text"
+                          placeholder="Note (optional)"
+                          value={paymentOwingDescription}
+                          onChange={(e) => setPaymentOwingDescription(e.target.value)}
+                          className="input-modern input-payment"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handlePaymentOwing(user.id)}
+                          className="btn-payment-submit"
+                        >
+                          Make Payment
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -1294,54 +1391,78 @@ function App() {
           {transactionMode === 'single' ? (
             <form onSubmit={addTransaction} className="transaction-form">
               <div className="quick-add-section">
-                <div className="quick-add-label">Quick add:</div>
+                <div className="quick-add-header">
+                  <div className="quick-add-icon">⚡</div>
+                  <div className="quick-add-text">
+                    <h3>Quick Setup</h3>
+                    <p>Choose your situation to auto-fill the form</p>
+                  </div>
+                </div>
                 <div className="quick-add-buttons">
                   <button 
                     type="button"
-                    className="btn-quick"
+                    className={`btn-quick btn-quick-lent ${fromUser === currentUser.id && !toUser ? 'active' : ''}`}
                     onClick={() => {
                       setFromUser(currentUser.id)
                       setToUser('')
                     }}
                   >
-                    💸 I lent money (someone owes me)
+                    <div className="btn-quick-icon">💰</div>
+                    <div className="btn-quick-content">
+                      <div className="btn-quick-title">I Lent Money</div>
+                      <div className="btn-quick-subtitle">Someone owes me</div>
+                    </div>
                   </button>
                   <button 
                     type="button"
-                    className="btn-quick"
+                    className={`btn-quick btn-quick-borrowed ${toUser === currentUser.id && !fromUser ? 'active' : ''}`}
                     onClick={() => {
                       setFromUser('')
                       setToUser(currentUser.id)
                     }}
                   >
-                    📥 I borrowed money (I owe someone)
+                    <div className="btn-quick-icon">📝</div>
+                    <div className="btn-quick-content">
+                      <div className="btn-quick-title">I Borrowed Money</div>
+                      <div className="btn-quick-subtitle">I owe someone</div>
+                    </div>
                   </button>
                 </div>
               </div>
 
-              <div className="form-row">
-                <select
-                  value={fromUser}
-                  onChange={(e) => setFromUser(e.target.value)}
-                  className="input-modern"
-                  required
-                >
-                  <option value="">Who paid?</option>
-                  {users.map(user => (
-                    <option key={user.id} value={user.id}>{user.name}</option>
-                  ))}
-                </select>
-                <select
-                  value={toUser}
-                  onChange={(e) => setToUser(e.target.value)}
-                  className="input-modern"
-                  required
-                >
-                  <option value="">For whom?</option>
-                  {users.map(user => (
-                    <option key={user.id} value={user.id}>{user.name}</option>
-                  ))}
-                </select>
+              <div className="form-section">
+                <div className="form-section-label">Transaction Details</div>
+                <div className="form-row">
+                  <div className="input-group">
+                    <label className="input-label">Who lent the money?</label>
+                    <select
+                      value={fromUser}
+                      onChange={(e) => setFromUser(e.target.value)}
+                      className="input-modern"
+                      required
+                    >
+                      <option value="">Select person...</option>
+                      {users.map(user => (
+                        <option key={user.id} value={user.id}>{user.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="input-group">
+                    <label className="input-label">Who borrowed the money?</label>
+                    <select
+                      value={toUser}
+                      onChange={(e) => setToUser(e.target.value)}
+                      className="input-modern"
+                      required
+                    >
+                      <option value="">Select person...</option>
+                      {users.map(user => (
+                        <option key={user.id} value={user.id}>{user.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                </div>
               </div>
               <div className="form-row">
                 <input
@@ -1356,7 +1477,7 @@ function App() {
                 />
                 <input
                   type="text"
-                  placeholder="Description"
+                  placeholder="Description (optional)"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="input-modern"
