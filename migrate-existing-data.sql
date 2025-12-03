@@ -1,12 +1,12 @@
 INSERT INTO groups (name, code)
-VALUES ('Capareda Boarding House', 'CAREDA')
+VALUES ('Capareda Boarding House', 'CAPAREDA')
 ON CONFLICT DO NOTHING;
 
 DO $$
 DECLARE
   default_group_id UUID;
 BEGIN
-  SELECT id INTO default_group_id FROM groups WHERE code = 'CAREDA';
+  SELECT id INTO default_group_id FROM groups WHERE code = 'CAPAREDA';
   
   UPDATE users 
   SET group_id = default_group_id 

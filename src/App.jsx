@@ -35,6 +35,9 @@ function App() {
   const [editProfilePic, setEditProfilePic] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [batchMode, setBatchMode] = useState('paying') // 'paying' or 'lending'
+  const [paymentUserId, setPaymentUserId] = useState(null) // User ID for whom payment is being made
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentDescription, setPaymentDescription] = useState('')
 
   // Check on initial mount if we should skip landing
   useEffect(() => {
@@ -482,6 +485,57 @@ function App() {
     setFromUser(currentUser.id)
     setToUser(userId)
     setTransactionMode('single')
+  }
+
+  function togglePayment(userId) {
+    if (paymentUserId === userId) {
+      setPaymentUserId(null)
+      setPaymentAmount('')
+      setPaymentDescription('')
+    } else {
+      setPaymentUserId(userId)
+      setPaymentAmount('')
+      setPaymentDescription('')
+    }
+  }
+
+  async function handlePayment(userId) {
+    if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+      alert('Please enter a valid payment amount')
+      return
+    }
+
+    const debt = calculateDebtBetweenUsers(userId)
+    const payAmount = parseFloat(paymentAmount)
+
+    if (payAmount > debt) {
+      alert(`Payment amount cannot exceed the debt of ₱${debt.toFixed(2)}`)
+      return
+    }
+
+    try {
+      // Create a transaction where the debtor (userId) pays back the current user
+      // This reduces the debt by the payment amount
+      const { error } = await supabase
+        .from('transactions')
+        .insert([{
+          from_user: userId, // Person who owes is paying
+          to_user: currentUser.id, // Current user receives payment
+          amount: payAmount,
+          description: paymentDescription.trim() || 'Payment',
+          group_id: currentGroup.id
+        }])
+      
+      if (error) throw error
+      
+      setPaymentUserId(null)
+      setPaymentAmount('')
+      setPaymentDescription('')
+      fetchTransactions()
+      alert(`Payment of ₱${payAmount.toFixed(2)} recorded successfully!`)
+    } catch (error) {
+      alert('Error recording payment: ' + error.message)
+    }
   }
 
   function calculateBalance(userId) {
@@ -1086,21 +1140,63 @@ function App() {
               })
               .map(user => {
                 const debt = calculateDebtBetweenUsers(user.id)
+                const isPaymentOpen = paymentUserId === user.id
                 return (
-                  <div key={user.id} className="balance-item balance-item-owed">
-                    <div className="balance-item-user">
-                      {user.profile_pic ? (
-                        <img src={user.profile_pic} alt={user.name} className="mini-avatar mini-avatar-img" />
-                      ) : (
-                        <div className="mini-avatar">
-                          {user.name.charAt(0).toUpperCase()}
+                  <div key={user.id} className="balance-item balance-item-owed balance-item-with-payment">
+                    <div className="balance-item-header">
+                      <div className="balance-item-user">
+                        {user.profile_pic ? (
+                          <img src={user.profile_pic} alt={user.name} className="mini-avatar mini-avatar-img" />
+                        ) : (
+                          <div className="mini-avatar">
+                            {user.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="balance-item-name">{user.name}</span>
+                      </div>
+                      <div className="balance-item-right">
+                        <div className="balance-item-amount positive">
+                          ₱{debt.toFixed(2)}
                         </div>
-                      )}
-                      <span className="balance-item-name">{user.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => togglePayment(user.id)}
+                          className={`btn-payment-toggle ${isPaymentOpen ? 'active' : ''}`}
+                          title="Record payment"
+                        >
+                          {isPaymentOpen ? '✕' : '💵'}
+                        </button>
+                      </div>
                     </div>
-                    <div className="balance-item-amount positive">
-                      ₱{debt.toFixed(2)}
-                    </div>
+                    {isPaymentOpen && (
+                      <div className="payment-form">
+                        <input
+                          type="number"
+                          placeholder="Payment amount"
+                          value={paymentAmount}
+                          onChange={(e) => setPaymentAmount(e.target.value)}
+                          className="input-modern input-payment"
+                          step="0.01"
+                          min="0.01"
+                          max={debt}
+                          autoFocus
+                        />
+                        <input
+                          type="text"
+                          placeholder="Note (optional)"
+                          value={paymentDescription}
+                          onChange={(e) => setPaymentDescription(e.target.value)}
+                          className="input-modern input-payment"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handlePayment(user.id)}
+                          className="btn-payment-submit"
+                        >
+                          Record Payment
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })}
