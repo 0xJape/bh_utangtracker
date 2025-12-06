@@ -41,6 +41,10 @@ function App() {
   const [paymentOwingUserId, setPaymentOwingUserId] = useState(null) // User ID for whom you're making a payment (you owe them)
   const [paymentOwingAmount, setPaymentOwingAmount] = useState('')
   const [paymentOwingDescription, setPaymentOwingDescription] = useState('')
+  const [paymentProofUrl, setPaymentProofUrl] = useState('') // Payment proof for people who owe you
+  const [paymentOwingProofUrl, setPaymentOwingProofUrl] = useState('') // Payment proof for people you owe
+  const [editGcashNumber, setEditGcashNumber] = useState('')
+  const [editGcashQr, setEditGcashQr] = useState('')
 
   // Check on initial mount if we should skip landing
   useEffect(() => {
@@ -495,10 +499,12 @@ function App() {
       setPaymentUserId(null)
       setPaymentAmount('')
       setPaymentDescription('')
+      setPaymentProofUrl('')
     } else {
       setPaymentUserId(userId)
       setPaymentAmount('')
       setPaymentDescription('')
+      setPaymentProofUrl('')
     }
   }
 
@@ -526,6 +532,7 @@ function App() {
           to_user: currentUser.id, // Current user receives payment
           amount: payAmount,
           description: paymentDescription.trim() || 'Payment',
+          proof_url: paymentProofUrl.trim() || null,
           group_id: currentGroup.id
         }])
       
@@ -534,6 +541,7 @@ function App() {
       setPaymentUserId(null)
       setPaymentAmount('')
       setPaymentDescription('')
+      setPaymentProofUrl('')
       fetchTransactions()
       alert(`Payment of ₱${payAmount.toFixed(2)} recorded successfully!`)
     } catch (error) {
@@ -546,10 +554,12 @@ function App() {
       setPaymentOwingUserId(null)
       setPaymentOwingAmount('')
       setPaymentOwingDescription('')
+      setPaymentOwingProofUrl('')
     } else {
       setPaymentOwingUserId(userId)
       setPaymentOwingAmount('')
       setPaymentOwingDescription('')
+      setPaymentOwingProofUrl('')
     }
   }
 
@@ -578,6 +588,7 @@ function App() {
           to_user: userId, // Person being paid
           amount: payAmount,
           description: paymentOwingDescription.trim() || 'Payment',
+          proof_url: paymentOwingProofUrl.trim() || null,
           group_id: currentGroup.id
         }])
       
@@ -586,6 +597,7 @@ function App() {
       setPaymentOwingUserId(null)
       setPaymentOwingAmount('')
       setPaymentOwingDescription('')
+      setPaymentOwingProofUrl('')
       fetchTransactions()
       alert(`Payment of ₱${payAmount.toFixed(2)} recorded successfully!`)
     } catch (error) {
@@ -650,6 +662,8 @@ function App() {
     setEditPassword('')
     setConfirmPassword('')
     setEditProfilePic(currentUser.profile_pic || '')
+    setEditGcashNumber(currentUser.gcash_number || '')
+    setEditGcashQr(currentUser.gcash_qr || '')
     setShowEditProfile(true)
   }
 
@@ -659,6 +673,8 @@ function App() {
     setEditPassword('')
     setConfirmPassword('')
     setEditProfilePic('')
+    setEditGcashNumber('')
+    setEditGcashQr('')
   }
 
   async function handleUpdateProfile(e) {
@@ -677,7 +693,9 @@ function App() {
     try {
       const updateData = {
         name: editName.trim(),
-        profile_pic: editProfilePic.trim() || null
+        profile_pic: editProfilePic.trim() || null,
+        gcash_number: editGcashNumber.trim() || null,
+        gcash_qr: editGcashQr.trim() || null
       }
 
       if (editPassword) {
@@ -1128,6 +1146,43 @@ function App() {
               </div>
 
               <div className="form-divider">
+                <span>GCash Information (Optional)</span>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">GCash Number</label>
+                <input
+                  type="text"
+                  placeholder="09XX XXX XXXX"
+                  value={editGcashNumber}
+                  onChange={(e) => setEditGcashNumber(e.target.value)}
+                  className="input-modern"
+                />
+                <small className="form-hint">Your GCash mobile number for payments</small>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">GCash QR Code Image URL</label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/your-gcash-qr.jpg"
+                  value={editGcashQr}
+                  onChange={(e) => setEditGcashQr(e.target.value)}
+                  className="input-modern"
+                />
+                <small className="form-hint">Direct link to your GCash QR code image</small>
+              </div>
+
+              {editGcashQr && (
+                <div className="form-group">
+                  <label className="form-label">QR Code Preview</label>
+                  <div className="gcash-qr-preview-edit">
+                    <img src={editGcashQr} alt="GCash QR Preview" className="qr-image-preview" />
+                  </div>
+                </div>
+              )}
+
+              <div className="form-divider">
                 <span>Change Password (Optional)</span>
               </div>
 
@@ -1243,6 +1298,24 @@ function App() {
                           onChange={(e) => setPaymentDescription(e.target.value)}
                           className="input-modern input-payment"
                         />
+                        <input
+                          type="url"
+                          placeholder="Payment proof image URL (optional)"
+                          value={paymentProofUrl}
+                          onChange={(e) => setPaymentProofUrl(e.target.value)}
+                          className="input-modern input-payment"
+                        />
+                        {user.gcash_number && (
+                          <div className="gcash-info">
+                            <div className="gcash-label">💳 GCash Number:</div>
+                            <div className="gcash-value">{user.gcash_number}</div>
+                          </div>
+                        )}
+                        {user.gcash_qr && (
+                          <div className="gcash-qr-preview">
+                            <img src={user.gcash_qr} alt="GCash QR" className="qr-image" />
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => handlePayment(user.id)}
@@ -1321,6 +1394,24 @@ function App() {
                           onChange={(e) => setPaymentOwingDescription(e.target.value)}
                           className="input-modern input-payment"
                         />
+                        <input
+                          type="url"
+                          placeholder="Payment proof image URL (optional)"
+                          value={paymentOwingProofUrl}
+                          onChange={(e) => setPaymentOwingProofUrl(e.target.value)}
+                          className="input-modern input-payment"
+                        />
+                        {user.gcash_number && (
+                          <div className="gcash-info">
+                            <div className="gcash-label">💳 GCash Number:</div>
+                            <div className="gcash-value">{user.gcash_number}</div>
+                          </div>
+                        )}
+                        {user.gcash_qr && (
+                          <div className="gcash-qr-preview">
+                            <img src={user.gcash_qr} alt="GCash QR" className="qr-image" />
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => handlePaymentOwing(user.id)}
@@ -1430,58 +1521,100 @@ function App() {
                 </div>
               </div>
 
-              <div className="form-section">
-                <div className="form-section-label">Transaction Details</div>
-                <div className="form-row">
-                  <div className="input-group">
-                    <label className="input-label">Who lent the money?</label>
-                    <select
-                      value={fromUser}
-                      onChange={(e) => setFromUser(e.target.value)}
-                      className="input-modern"
-                      required
-                    >
-                      <option value="">Select person...</option>
-                      {users.map(user => (
-                        <option key={user.id} value={user.id}>{user.name}</option>
-                      ))}
-                    </select>
+              {/* Show simplified form when quick action is selected */}
+              {fromUser === currentUser.id || toUser === currentUser.id ? (
+                // Quick action selected - Show only relevant field
+                <>
+                  <div className="form-section">
+                    <div className="input-group">
+                      <label className="input-label">
+                        {fromUser === currentUser.id ? 'Who did you lend money to?' : 'Who did you borrow money from?'}
+                      </label>
+                      <select
+                        value={fromUser === currentUser.id ? toUser : fromUser}
+                        onChange={(e) => {
+                          if (fromUser === currentUser.id) {
+                            setToUser(e.target.value)
+                          } else {
+                            setFromUser(e.target.value)
+                          }
+                        }}
+                        className="input-modern"
+                        required
+                      >
+                        <option value="">Select person...</option>
+                        {users.filter(u => u.id !== currentUser.id).map(user => (
+                          <option key={user.id} value={user.id}>{user.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <div className="input-group">
-                    <label className="input-label">Who borrowed the money?</label>
-                    <select
-                      value={toUser}
-                      onChange={(e) => setToUser(e.target.value)}
-                      className="input-modern"
-                      required
-                    >
-                      <option value="">Select person...</option>
-                      {users.map(user => (
-                        <option key={user.id} value={user.id}>{user.name}</option>
-                      ))}
-                    </select>
+                </>
+              ) : (
+                // Default - Show both fields
+                <div className="form-section">
+                  <div className="form-section-label">Transaction Details</div>
+                  <div className="form-row">
+                    <div className="input-group">
+                      <label className="input-label">Who lent the money?</label>
+                      <select
+                        value={fromUser}
+                        onChange={(e) => setFromUser(e.target.value)}
+                        className="input-modern"
+                        required
+                      >
+                        <option value="">Select person...</option>
+                        {users.map(user => (
+                          <option key={user.id} value={user.id}>{user.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">Who borrowed the money?</label>
+                      <select
+                        value={toUser}
+                        onChange={(e) => setToUser(e.target.value)}
+                        className="input-modern"
+                        required
+                      >
+                        <option value="">Select person...</option>
+                        {users.map(user => (
+                          <option key={user.id} value={user.id}>{user.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="form-row">
-                <input
-                  type="number"
-                  placeholder="Amount (₱)"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="input-modern"
-                  step="0.01"
-                  min="0.01"
-                  required
-                />
-                <input
-                  type="text"
-                  placeholder="Description (optional)"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="input-modern"
-                />
+                <div className="input-group">
+                  <label className="input-label">
+                    {fromUser === currentUser.id && !toUser ? 'How much did you lend?' : 
+                     toUser === currentUser.id && !fromUser ? 'How much did you borrow?' : 
+                     'Amount'}
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="₱ 0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="input-modern"
+                    step="0.01"
+                    min="0.01"
+                    required
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">What was it for?</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Bills, Food, Rent..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="input-modern"
+                  />
+                </div>
               </div>
               <button type="submit" className="btn-submit">Record Transaction</button>
             </form>

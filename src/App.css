@@ -1714,6 +1714,14 @@
   gap: 0.5rem;
 }
 
+.input-group .input-modern {
+  width: 100%;
+}
+
+.form-section .input-group:only-child {
+  max-width: 100%;
+}
+
 .input-label {
   font-size: 0.875rem;
   font-weight: 600;
@@ -2298,5 +2306,83 @@
 
   .payment-form {
     padding: 0.875rem;
+  }
+}
+
+/* GCash Information Styles */
+.gcash-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(0, 112, 243, 0.08), rgba(0, 175, 240, 0.08));
+  border-radius: 10px;
+  border: 1px solid rgba(0, 112, 243, 0.2);
+  margin-top: 0.5rem;
+}
+
+.gcash-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0070f3;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gcash-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+  font-family: 'Courier New', monospace;
+}
+
+.gcash-qr-preview {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 2px solid #e5e7eb;
+  margin-top: 0.75rem;
+}
+
+.qr-image {
+  max-width: 200px;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.gcash-qr-preview-edit {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 2px dashed #cbd5e1;
+}
+
+.qr-image-preview {
+  max-width: 180px;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.input-payment[placeholder*="proof"] {
+  border-left: 3px solid #8b5cf6;
+}
+
+@media (max-width: 480px) {
+  .qr-image {
+    max-width: 150px;
+  }
+
+  .gcash-value {
+    font-size: 1rem;
   }
 }
