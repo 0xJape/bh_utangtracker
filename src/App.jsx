@@ -1521,73 +1521,76 @@ function App() {
                 </div>
               </div>
 
-              {/* Show simplified form when quick action is selected */}
-              {fromUser === currentUser.id || toUser === currentUser.id ? (
-                // Quick action selected - Show only relevant field
+              {/* Only show transaction details after quick action is selected */}
+              {(fromUser || toUser) && (
                 <>
-                  <div className="form-section">
-                    <div className="input-group">
-                      <label className="input-label">
-                        {fromUser === currentUser.id ? 'Who did you lend money to?' : 'Who did you borrow money from?'}
-                      </label>
-                      <select
-                        value={fromUser === currentUser.id ? toUser : fromUser}
-                        onChange={(e) => {
-                          if (fromUser === currentUser.id) {
-                            setToUser(e.target.value)
-                          } else {
-                            setFromUser(e.target.value)
-                          }
-                        }}
-                        className="input-modern"
-                        required
-                      >
-                        <option value="">Select person...</option>
-                        {users.filter(u => u.id !== currentUser.id).map(user => (
-                          <option key={user.id} value={user.id}>{user.name}</option>
-                        ))}
-                      </select>
+                  {/* Show simplified form when quick action is selected */}
+                  {fromUser === currentUser.id || toUser === currentUser.id ? (
+                    // Quick action selected - Show only relevant field
+                    <>
+                      <div className="form-section">
+                        <div className="input-group">
+                          <label className="input-label">
+                            {fromUser === currentUser.id ? 'Who did you lend money to?' : 'Who did you borrow money from?'}
+                          </label>
+                          <select
+                            value={fromUser === currentUser.id ? toUser : fromUser}
+                            onChange={(e) => {
+                              if (fromUser === currentUser.id) {
+                                setToUser(e.target.value)
+                              } else {
+                                setFromUser(e.target.value)
+                              }
+                            }}
+                            className="input-modern"
+                            required
+                          >
+                            <option value="">Select person...</option>
+                            {users.filter(u => u.id !== currentUser.id).map(user => (
+                              <option key={user.id} value={user.id}>{user.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    // Default - Show both fields
+                    <div className="form-section">
+                      <div className="form-section-label">Transaction Details</div>
+                      <div className="form-row">
+                        <div className="input-group">
+                          <label className="input-label">Who lent the money?</label>
+                          <select
+                            value={fromUser}
+                            onChange={(e) => setFromUser(e.target.value)}
+                            className="input-modern"
+                            required
+                          >
+                            <option value="">Select person...</option>
+                            {users.map(user => (
+                              <option key={user.id} value={user.id}>{user.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="input-group">
+                          <label className="input-label">Who borrowed the money?</label>
+                          <select
+                            value={toUser}
+                            onChange={(e) => setToUser(e.target.value)}
+                            className="input-modern"
+                            required
+                          >
+                            <option value="">Select person...</option>
+                            {users.map(user => (
+                              <option key={user.id} value={user.id}>{user.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </>
-              ) : (
-                // Default - Show both fields
-                <div className="form-section">
-                  <div className="form-section-label">Transaction Details</div>
-                  <div className="form-row">
-                    <div className="input-group">
-                      <label className="input-label">Who lent the money?</label>
-                      <select
-                        value={fromUser}
-                        onChange={(e) => setFromUser(e.target.value)}
-                        className="input-modern"
-                        required
-                      >
-                        <option value="">Select person...</option>
-                        {users.map(user => (
-                          <option key={user.id} value={user.id}>{user.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="input-group">
-                      <label className="input-label">Who borrowed the money?</label>
-                      <select
-                        value={toUser}
-                        onChange={(e) => setToUser(e.target.value)}
-                        className="input-modern"
-                        required
-                      >
-                        <option value="">Select person...</option>
-                        {users.map(user => (
-                          <option key={user.id} value={user.id}>{user.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
+                  )}
 
-              <div className="form-row">
+                  <div className="form-row">
                 <div className="input-group">
                   <label className="input-label">
                     {fromUser === currentUser.id && !toUser ? 'How much did you lend?' : 
@@ -1617,6 +1620,8 @@ function App() {
                 </div>
               </div>
               <button type="submit" className="btn-submit">Record Transaction</button>
+                </>
+              )}
             </form>
           ) : (
             <form onSubmit={addBatchTransactions} className="transaction-form">
